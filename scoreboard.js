@@ -1,3 +1,7 @@
+var express = require('express');
+var app     = express();
+var port    =   process.env.PORT || 8080;
+
 var mysql      = require('mysql');
 var connection = mysql.createConnection({
   host     : 'localhost',
@@ -14,55 +18,46 @@ connection.connect(function(err) {
   console.log('Connected');
 });
 
-
-var leaderboard = function() {
-  connection.query('SELECT * from players ORDER BY score DESC LIMIT 10', function(err, rows, fields) {
-  connection.end();
-    if (!err) {
-      console.log('Leaderboard');
-      for(i = 0; i < rows.length; i++) {
-        console.log((i+1) + ' ' + rows[i].name + ' ' +  rows[i].score + ' points' );
+app.get('/', function(req, res) {
+  var output = [];
+  var leaderboard = function() {
+      connection.query('SELECT * from players ORDER BY score DESC LIMIT 10', function(err, rows, fields) {
+        if (!err) {
+          for(i = 0; i < rows.length; i++) {
+            var player = (i+1) + ' ' + rows[i].name + ' ' +  rows[i].score + ' points' ;
+            output.push(player);
+          }
+          res.send(output);
+        } else {
+          res.send(err);
+        }});
+    };
+    leaderboard();
+});
+app.get('/update/:player/:points', function(req, res) {
+  var updatePlayer = function() {
+  var post  = [req.params.points, req.params.player];
+    connection.query('UPDATE players SET score = ? WHERE name = ?', post, function(err, rows, fields) {
+      if (!err) {
+        res.send(req.params.player + ' now has ' + req.params.points + ' points!');
+      } else {
+        res.send(err);
       }
-    } else {
-      console.log('Error while performing Query.');
-      console.log(err);
-    }});
-};
-
-var addPlayer = function() {
-  var post  = {name: args[1], score: args[2]};
-  connection.query('INSERT INTO players SET ?', post, function(err, rows, fields) {
-  connection.end();
-    if (!err) {
-      console.log('Successfully added ' + post.name + ' with ' + post.score + ' points!');
-    } else {
-      console.log('Error while performing Query.');
-      console.log(err);
-    }});
-};
-
-var updatePlayer = function() {
-  var post  = [args[2], args[1]];
-  connection.query('UPDATE players SET score = ? WHERE name = ?', post, function(err, rows, fields) {
-  connection.end();
-    if (!err) {
-      console.log(args[1] + ' now has ' + args[2] + ' points!');
-      
-    } else {
-      console.log('Error while performing Query.');
-      console.log(err);
-    }
-  });
-};
-
-var args = process.argv.slice(2);
-
-if(args[0] == "scoreboard"){
-  leaderboard();
-} else if (args[0] == "new"){
-  addPlayer();
-} else if (args[0] === "update"){
+    });
+  };
   updatePlayer();
-} else {
-  console.log("Please enter a request")
-}
+});
+app.get('/add/:player/:points', function(req, res) {
+  var addPlayer = function() {
+    var post  = {name: req.params.player, score: req.params.points};
+    connection.query('INSERT INTO players SET ?', post, function(err, rows, fields) {
+      if (!err) {
+        res.send('Successfully added ' + post.name + ' with ' + post.score + ' points!');
+      } else {
+        res.send(err);
+      }});
+  };
+  addPlayer();
+});
+app.listen(port);
+console.log('Magic happens on port ' + port);
